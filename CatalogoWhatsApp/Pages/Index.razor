@@ -1,0 +1,298 @@
+﻿@page "/"
+@using CatalogoWhatsApp.Data
+@using CatalogoWhatsApp.Services
+@inject ProductoService ProductoService
+@inject NavigationManager Nav
+@rendermode RenderMode.InteractiveServer
+
+<PageTitle>Catálogo de Productos | Tienda Express</PageTitle>
+
+<div class="container mt-5 pb-5">
+    <div class="text-center mb-5 p-5 rounded-4 shadow-sm hero-section">
+        <h1 class="display-4 fw-bold text-primary">Nuestra Colección</h1>
+        <p class="lead text-muted">Explora calidad, selecciona estilo y pide por WhatsApp</p>
+    </div>
+
+    @if (productos == null)
+    {
+        <div class="text-center mt-5">
+            <div class="spinner-grow text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Sincronizando inventario...</p>
+        </div>
+    }
+    else if (!productos.Any())
+    {
+        <div class="alert alert-light text-center shadow-sm border-0 py-5" role="alert">
+            <h4 class="text-muted">Aún no hay productos en exhibición.</h4>
+        </div>
+    }
+    else
+    {
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4 animate-in">
+            @foreach (var prod in productos)
+            {
+                <div class="col">
+                    <div class="card h-100 producto-card border-0 shadow-sm" @onclick="() => MostrarDetalle(prod)">
+                        <div id="cardCarousel-@prod.id_producto" class="carousel slide carousel-fade h-100"
+                             data-bs-ride="carousel"
+                             data-bs-interval="3000"
+                             data-bs-pause="false">
+                            <div class="carousel-inner rounded-t-4">
+                                @if (prod.Imagenes != null && prod.Imagenes.Any())
+                                {
+                                    @for (int i = 0; i < prod.Imagenes.Count; i++)
+                                    {
+                                        <div class="carousel-item @(i == 0 ? "active" : "")">
+                                            <div class="img-wrapper">
+                                                <img src="@prod.Imagenes[i].imagen_url" class="d-block w-100" alt="@prod.nombre">
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="carousel-item active">
+                                        <div class="img-wrapper">
+                                            <img src="images/no-image.png" class="d-block w-100" alt="Sin imagen">
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <span class="badge category-badge">@prod.Categoria?.nombre</span>
+                                <span class="text-success fw-bold">Q @prod.precio</span>
+                            </div>
+                            <h6 class="card-title fw-bold text-dark mb-3">@prod.nombre</h6>
+
+                            <button class="btn btn-primary w-100 rounded-pill btn-add-cart"
+                            @onclick:stopPropagation @onclick="() => AgregarAlCarrito(prod)">
+                                🛒 Añadir al Pedido
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (carrito.Any())
+{
+    <div class="cart-floater" @onclick="AbrirResumen">
+        <div class="cart-badge">@carrito.Sum(x => x.Cantidad)</div>
+        <span class="text-white fs-3">🛒</span>
+    </div>
+}
+
+<div class="modal fade @(mostrarModal ? "show d-block" : "")" tabindex="-1" style="background-color: rgba(0,0,0,0.7); backdrop-filter: blur(5px);">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 overflow-hidden shadow-lg">
+            @if (productoSeleccionado != null)
+            {
+                <div class="row g-0">
+                    <div class="col-md-6 bg-light d-flex align-items-center">
+                        <div id="carouselDetailModal" class="carousel slide w-100" data-bs-ride="false">
+                            <div class="carousel-inner p-4">
+                                @for (int i = 0; i < productoSeleccionado.Imagenes.Count; i++)
+                                {
+                                    <div class="carousel-item @(i == 0 ? "active" : "") text-center">
+                                        <img src="@productoSeleccionado.Imagenes[i].imagen_url" class="img-fluid rounded-3" style="max-height: 400px; object-fit: contain;">
+                                    </div>
+                                }
+                            </div>
+                            @if (productoSeleccionado.Imagenes.Count > 1)
+                            {
+                                <button class="carousel-control-prev" type="button" data-bs-target="#carouselDetailModal" data-bs-slide="prev">
+                                    <span class="carousel-control-prev-icon bg-dark rounded-circle p-2" aria-hidden="true"></span>
+                                </button>
+                                <button class="carousel-control-next" type="button" data-bs-target="#carouselDetailModal" data-bs-slide="next">
+                                    <span class="carousel-control-next-icon bg-dark rounded-circle p-2" aria-hidden="true"></span>
+                                </button>
+                            }
+                        </div>
+                    </div>
+                    <div class="col-md-6 p-5 bg-white position-relative">
+                        <button type="button" class="btn-close position-absolute top-0 end-0 m-3" @onclick="CerrarModal"></button>
+                        <span class="badge bg-primary-subtle text-primary mb-2">@productoSeleccionado.Categoria?.nombre</span>
+                        <h2 class="fw-bold text-dark">@productoSeleccionado.nombre</h2>
+                        <h3 class="text-success mb-4">Q @productoSeleccionado.precio</h3>
+                        <p class="text-muted" style="white-space: pre-wrap; line-height: 1.6;">@productoSeleccionado.descripcion</p>
+                        <button class="btn btn-primary btn-lg w-100 rounded-pill mt-4 shadow-sm" @onclick="() => AgregarAlCarrito(productoSeleccionado)">
+                            🚀 Agregar al Carrito
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="modal fade @(mostrarResumen ? "show d-block" : "")" tabindex="-1" style="background-color: rgba(0,0,0,0.6);">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow-lg">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold">🛒 Tu Pedido</h5>
+                <button type="button" class="btn-close btn-close-white" @onclick="() => mostrarResumen = false"></button>
+            </div>
+            <div class="modal-body p-4">
+                @foreach (var item in carrito)
+                {
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <span class="fw-bold">@item.Producto.nombre</span>
+                            <div class="text-muted small">Cantidad: @item.Cantidad</div>
+                        </div>
+                        <div class="text-primary fw-bold">Q @(item.Producto.precio * item.Cantidad)</div>
+                    </div>
+                }
+                <hr />
+                <div class="d-flex justify-content-between h4 fw-bold">
+                    <span>Total:</span>
+                    <span class="text-success">Q @carrito.Sum(x => x.Producto.precio * x.Cantidad)</span>
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-4">
+                <button class="btn btn-success btn-lg w-100 rounded-pill py-3 fw-bold shadow" @onclick="EnviarWhatsApp">
+                    ✅ Finalizar por WhatsApp
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hero-section {
+        background: linear-gradient(120deg, #ffffff 0%, #f3f4f7 100%);
+    }
+
+    .producto-card {
+        transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+        cursor: pointer;
+        border-radius: 1.2rem;
+    }
+
+        .producto-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important;
+        }
+
+    .img-wrapper {
+        height: 200px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 15px;
+        background: #fff;
+    }
+
+        .img-wrapper img {
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+    .category-badge {
+        background: #f0f2f5;
+        color: #6c757d;
+        font-size: 0.75rem;
+        border-radius: 6px;
+    }
+
+    .cart-floater {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        background: #25D366;
+        width: 65px;
+        height: 65px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 25px rgba(37, 211, 102, 0.4);
+        cursor: pointer;
+        z-index: 1000;
+        transition: scale 0.2s;
+    }
+
+        .cart-floater:hover {
+            scale: 1.1;
+        }
+
+    .cart-badge {
+        position: absolute;
+        top: 0;
+        right: 0;
+        background: #ff3b30;
+        color: white;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid white;
+        font-weight: bold;
+    }
+
+    .animate-in {
+        animation: fadeInUp 0.6s ease-out;
+    }
+
+    @@keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
+@code {
+    private List<Producto>? productos;
+    private bool mostrarModal = false;
+    private bool mostrarResumen = false;
+    private Producto? productoSeleccionado;
+    private List<ElementoCarrito> carrito = new();
+
+    public class ElementoCarrito
+    {
+        public Producto Producto { get; set; } = new();
+        public int Cantidad { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        productos = await ProductoService.GetProductosAsync();
+    }
+
+    private void MostrarDetalle(Producto p) { productoSeleccionado = p; mostrarModal = true; }
+    private void CerrarModal() { mostrarModal = false; }
+    private void AbrirResumen() { mostrarResumen = true; }
+
+    private void AgregarAlCarrito(Producto p)
+    {
+        var item = carrito.FirstOrDefault(x => x.Producto.id_producto == p.id_producto);
+        if (item != null) item.Cantidad++;
+        else carrito.Add(new ElementoCarrito { Producto = p, Cantidad = 1 });
+        CerrarModal();
+    }
+
+    private void EnviarWhatsApp()
+    {
+        string telefono = "50232152801";
+        string msj = "¡Hola! Quisiera pedir estos productos:\n\n";
+        foreach (var item in carrito)
+            msj += $"✅ {item.Producto.nombre} (x{item.Cantidad}) - Q{item.Producto.precio * item.Cantidad}\n";
+        msj += $"\n*Total: Q{carrito.Sum(x => x.Producto.precio * x.Cantidad)}*";
+        string url = $"https://wa.me/{telefono}?text={Uri.EscapeDataString(msj)}";
+        Nav.NavigateTo(url, true);
+    }
+}

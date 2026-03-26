@@ -1,0 +1,261 @@
+﻿@page "/admin/productos"
+@using System.IO
+@inject IWebHostEnvironment Environment
+@using CatalogoWhatsApp.Data
+@using CatalogoWhatsApp.Services
+@using Microsoft.AspNetCore.Components.Web
+@inject ProductoService ProductoService
+@inject CategoriaService CategoriaService
+@rendermode RenderMode.InteractiveServer
+
+<PageTitle>Admin - Productos</PageTitle>
+
+<div class="container mt-4 pb-5">
+    <h2 class="mb-4">🛠️ Gestión Avanzada del Catálogo</h2>
+
+    <div class="card shadow mb-5 border-0 rounded-4 overflow-hidden">
+        <div class="card-header bg-primary text-white p-3">
+            <h5 class="mb-0 fw-bold">Añadir Nuevo Producto (Multi-Galería)</h5>
+        </div>
+        <div class="card-body p-4 bg-light">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Nombre del Producto</label>
+                    <input type="text" @bind="nuevoProd.nombre" class="form-control form-control-lg rounded-3" placeholder="Ej: Tenis Jordan Retro" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Precio (Q)</label>
+                    <input type="number" @bind="nuevoProd.precio" class="form-control form-control-lg rounded-3" step="0.01" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Stock Inicial</label>
+                    <input type="number" @bind="nuevoProd.stock" class="form-control form-control-lg rounded-3" />
+                </div>
+
+                <div class="col-md-12">
+                    <label class="form-label fw-bold">Descripción Ampliada</label>
+                    <textarea @bind="nuevoProd.descripcion" class="form-control rounded-3" rows="3" placeholder="Describe materiales, tallas, colores..."></textarea>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Categoría</label>
+                    <select @bind="nuevoProd.id_categoria" class="form-select form-select-lg rounded-3">
+                        <option value="0">-- Seleccione una Categoría --</option>
+                        @foreach (var cat in categorias)
+                        {
+                            <option value="@cat.id_categoria">@cat.nombre</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-primary">Subir Galería de Imágenes (Puedes seleccionar varias)</label>
+                    <InputFile @key="inputFileId" OnChange="CargarArchivosLocales" multiple class="form-control form-control-lg rounded-3 border-primary" accept=".jpg,.jpeg,.png,.webp" />
+
+                    @if (archivosSeleccionados.Any())
+                    {
+                        <div class="mt-3 p-3 bg-white rounded-3 border">
+                            <h6 class="fw-bold text-success">📸 @archivosSeleccionados.Count imágenes listas para subir:</h6>
+                            <ul class="list-unstyled small mb-0 mt-2">
+                                @foreach (var file in archivosSeleccionados)
+                                {
+                                    <li class="text-truncate">• @file.Name (@((file.Size / 1024).ToString("N0")) KB)</li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                </div>
+
+                @if (!string.IsNullOrEmpty(statusMessage))
+                {
+                    <div class="col-12">
+                        <div class="alert alert-info py-2 shadow-sm rounded-3">@statusMessage</div>
+                    </div>
+                }
+
+                <div class="col-12 text-end mt-4">
+                    <button class="btn btn-success btn-lg px-5 rounded-pill shadow-sm" @onclick="GuardarCompleto" disabled="@isUploading">
+                        @if (isUploading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                            <span>Subiendo galería...</span>
+                        }
+                        else
+                        {
+                            <span>🚀 Guardar Producto y Galería</span>
+                        }
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow border-0 rounded-4">
+        <div class="card-header bg-dark text-white p-3">
+            <h5 class="mb-0 fw-bold">Productos en Base de Datos</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-striped align-middle table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Producto</th>
+                        <th>Categoría</th>
+                        <th>Precio</th>
+                        <th>Galería</th>
+                        <th>Stock</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in listaProductos)
+                    {
+                        <tr>
+                            <td>@p.id_producto</td>
+                            <td class="fw-bold">@p.nombre</td>
+                            <td>@p.Categoria?.nombre</td>
+                            <td class="text-success fw-bold">Q @p.precio.ToString("N2")</td>
+                            <td>
+                                <span class="badge bg-secondary rounded-pill">
+                                    📷 @(p.Imagenes?.Count ?? 0)
+                                </span>
+                            </td>
+                            <td>@p.stock</td>
+                            <td class="text-center">
+                                <button class="btn btn-danger btn-sm rounded-pill" @onclick="() => Eliminar(p.id_producto)">Eliminar</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private Producto nuevoProd = new() { id_categoria = 0 };
+    private List<Producto> listaProductos = new();
+    private List<Categoria> categorias = new();
+
+    // Variable para resetear el input de archivo
+    private Guid inputFileId = Guid.NewGuid();
+
+    // Variables para gestionar la subida múltiple
+    private IReadOnlyList<IBrowserFile> archivosSeleccionados = new List<IBrowserFile>();
+    private bool isUploading = false;
+    private string statusMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefrescarDatos();
+    }
+
+    private async Task RefrescarDatos()
+    {
+        listaProductos = await ProductoService.GetProductosAsync();
+        categorias = await CategoriaService.GetCategoriasAsync();
+    }
+
+    // Paso 1: El usuario selecciona los archivos, los guardamos en memoria temporal
+    private void CargarArchivosLocales(InputFileChangeEventArgs e)
+    {
+        // Guardamos la lista de archivos seleccionados
+        archivosSeleccionados = e.GetMultipleFiles(10); // Permitimos hasta 10 fotos
+        statusMessage = $"{archivosSeleccionados.Count} archivos cargados en memoria. Presiona 'Guardar' para subirlos.";
+    }
+
+    private async Task Eliminar(int id)
+    {
+        var confirmado = await ProductoService.EliminarProductoAsync(id);
+        if (confirmado)
+        {
+            await RefrescarDatos();
+        }
+    }
+
+    // Paso 2: La lógica principal para guardar producto y todas sus imágenes
+    private async Task GuardarCompleto()
+    {
+        // 1. Validación básica
+        if (string.IsNullOrWhiteSpace(nuevoProd.nombre) || nuevoProd.id_categoria == 0)
+        {
+            statusMessage = "❌ Por favor, llena el nombre y selecciona una categoría.";
+            return;
+        }
+
+        if (!archivosSeleccionados.Any())
+        {
+            statusMessage = "❌ Debes seleccionar al menos una imagen para la galería.";
+            return;
+        }
+
+        try
+        {
+            isUploading = true;
+            statusMessage = "⏳ Guardando producto inicial en la base de datos...";
+            StateHasChanged(); // Forzamos actualización visual del spinner
+
+            // 2. Primero insertamos el producto básico para obtener su ID generado por MySQL
+            bool insertadoProd = await ProductoService.InsertarProductoAsync(nuevoProd);
+
+            if (insertadoProd)
+            {
+                // nuevoProd ahora tiene el ID que le asignó MySQL
+                int idNuevoProducto = nuevoProd.id_producto;
+
+                statusMessage = $"⏳ Producto '{nuevoProd.nombre}' creado (ID: {idNuevoProducto}). Subiendo galería ({archivosSeleccionados.Count} imágenes)...";
+                StateHasChanged();
+
+                // 3. Procesamos cada archivo seleccionado
+                int contador = 1;
+                foreach (var archivo in archivosSeleccionados)
+                {
+                    statusMessage = $"⏳ Subiendo imagen {contador} de {archivosSeleccionados.Count}: {archivo.Name}";
+                    StateHasChanged();
+
+                    // Definimos la ruta destino en wwwroot/images/productos
+                    var nombreUnicoArchivo = $"{Guid.NewGuid()}_{archivo.Name}"; // Usamos Guid para evitar nombres duplicados
+                    var carpetaDestino = Path.Combine(Environment.WebRootPath, "images", "productos");
+
+                    // Creamos la carpeta si no existe (por seguridad)
+                    if (!Directory.Exists(carpetaDestino)) Directory.CreateDirectory(carpetaDestino);
+
+                    var rutaCompleta = Path.Combine(carpetaDestino, nombreUnicoArchivo);
+
+                    // A. Copiamos el archivo físicamente a la carpeta del servidor
+                    using var stream = archivo.OpenReadStream(maxAllowedSize: 1024 * 1024 * 5); // Max 5MB por foto
+                    using var fs = File.Create(rutaCompleta);
+                    await stream.CopyToAsync(fs);
+
+                    // B. Registramos la imagen en la nueva tabla ProductoImagenes asociada al ID del producto
+                    var nuevaImagen = new ProductoImagen
+                        {
+                            id_producto = idNuevoProducto,
+                            imagen_url = $"images/productos/{nombreUnicoArchivo}",
+                            es_principal = (contador == 1) // La primera imagen se marca como principal automáticamente
+                        };
+
+                    await ProductoService.InsertarImagenProductoAsync(nuevaImagen);
+                    contador++;
+                }
+
+                // --- LIMPIEZA TOTAL ---
+                nuevoProd = new() { id_categoria = 0 }; // Limpia objeto principal
+                inputFileId = Guid.NewGuid();           // Cambia ID para limpiar el input file
+                archivosSeleccionados = new List<IBrowserFile>(); // Limpia la lista temporal
+                statusMessage = "✅ ¡Producto y galería subidos con éxito!";
+
+                await RefrescarDatos(); // Actualiza la tabla inferior
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"❌ Error crítico durante la subida: {ex.Message}";
+        }
+        finally
+        {
+            isUploading = false;
+            StateHasChanged();
+        }
+    }
+}

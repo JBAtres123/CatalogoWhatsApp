@@ -1,0 +1,41 @@
+﻿@inherits LayoutComponentBase
+
+<PageTitle>Catálogo de WhatsApp</PageTitle>
+
+<div class="page">
+    <main>
+        @* Eliminamos el sidebar y el top-row para ganar todo el espacio *@
+        <div class="top-row px-4 d-flex justify-content-end">
+            <a href="/admin/productos" class="btn btn-outline-secondary btn-sm me-2">Administración</a>
+            <a href="/" class="btn btn-outline-primary btn-sm">Catálogo</a>
+        </div>
+
+        <article class="content px-1 px-md-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+<style>
+    /* Forzamos a que el contenedor principal no tenga márgenes laterales */
+    .page {
+        display: block !important;
+    }
+
+    main {
+        margin-left: 0 !important;
+        width: 100%;
+    }
+
+    /* Ajuste para que en móviles se vea bien */
+    .content {
+        padding-top: 1rem;
+    }
+
+    /* Quitamos el borde superior del top-row original de Blazor */
+    .top-row {
+        height: 3.5rem;
+        border-bottom: 1px solid #dee2e6;
+        background-color: #f7f7f7;
+    }
+</style>
