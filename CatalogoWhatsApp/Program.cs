@@ -15,6 +15,10 @@ builder.Services.AddScoped<ProductoService>();
 builder.Services.AddScoped<CategoriaService>();
 builder.Services.AddScoped<ProductoService>();
 
+// Registrar el nuevo servicio de pedidos
+builder.Services.AddScoped<PedidoService>();
+builder.Services.AddScoped<AuthService>();
+
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();

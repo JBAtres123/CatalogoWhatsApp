@@ -1,0 +1,172 @@
+﻿@page "/admin/pedidos"
+@using CatalogoWhatsApp.Data
+@using CatalogoWhatsApp.Services
+@inject PedidoService PedidoService
+@inject NavigationManager Nav
+@rendermode RenderMode.InteractiveServer
+@inject AuthService AuthService
+
+
+
+<PageTitle>Admin - Gestión de Pedidos</PageTitle>
+
+<div class="container mt-4 pb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">📦 Control de Pedidos</h2>
+        <div class="btn-group shadow-sm">
+            <a href="/admin/productos" class="btn btn-outline-primary">📦 Gestión Productos</a>
+            <a href="/admin/pedidos" class="btn btn-primary active">📋 Lista de Pedidos</a>
+        </div>
+    </div>
+
+    ...
+
+    @if (pedidos == null)
+    {
+        <div class="text-center p-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2">Consultando base de datos...</p>
+        </div>
+    }
+    else if (!pedidos.Any())
+    {
+        <div class="alert alert-light text-center shadow-sm py-5">
+            <h4 class="text-muted">Aún no hay pedidos registrados.</h4>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow border-0 rounded-4 overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-dark text-white">
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Cliente</th>
+                            <th>Total</th>
+                            <th>Estado</th>
+                            <th class="text-center">Cambiar Estado</th>
+                            <th>Detalles</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var ped in pedidos)
+                        {
+                            <tr>
+                                <td class="fw-bold">#@ped.id_pedido</td>
+                                <td class="small">@ped.fecha_creacion.ToString("dd/MM/yy HH:mm")</td>
+                                <td>
+                                    <div class="fw-bold">@ped.nombre_cliente @ped.apellido_cliente</div>
+                                    <div class="text-muted small">@ped.telefono_cliente</div>
+                                </td>
+                                <td class="text-success fw-bold">Q @ped.total_pedido.ToString("N2")</td>
+                                <td>
+                                    <span class="badge @GetBadgeClass(ped.id_estado)">
+                                        @GetEstadoNombre(ped.id_estado)
+                                    </span>
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm"
+                                            value="@ped.id_estado"
+                                            @onchange="@(e => ActualizarEstado(ped.id_pedido, e))">
+                                        <option value="1">Pendiente</option>
+                                        <option value="2">Enviado a WA</option>
+                                        <option value="3">Completado</option>
+                                        <option value="4">Cancelado</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <button class="btn btn-outline-info btn-sm" @onclick="() => VerDetalles(ped)">
+                                        👁️ Ver
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@if (pedidoSeleccionado != null)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,0.5)">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 rounded-4 shadow-lg">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title fw-bold">Detalle Pedido #@pedidoSeleccionado.id_pedido</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="() => pedidoSeleccionado = null"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <p><b>📍 Dirección:</b> @pedidoSeleccionado.direccion</p>
+                    <p><b>📝 Notas:</b> @(pedidoSeleccionado.instrucciones_envio ?? "Ninguna")</p>
+                    <hr />
+                    <h6 class="fw-bold">Productos:</h6>
+                    <ul class="list-group list-group-flush">
+                        @foreach (var det in pedidoSeleccionado.Detalles)
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <div>
+                                    @det.Producto?.nombre
+                                    <span class="text-muted small"> (x@det.cantidad)</span>
+                                </div>
+                                <span class="fw-bold">Q @(det.precio_unitario * det.cantidad)</span>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var auth = await AuthService.IsAuthenticated();
+            if (!auth) Nav.NavigateTo("/login");
+            StateHasChanged();
+        }
+    }
+    private List<Pedido>? pedidos;
+    private Pedido? pedidoSeleccionado;
+
+    protected override async Task OnInitializedAsync()
+    {
+        pedidos = await PedidoService.GetPedidosAsync();
+    }
+
+    private async Task ActualizarEstado(int id, ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int nuevoEstado))
+        {
+            await PedidoService.ActualizarEstadoPedidoAsync(id, nuevoEstado);
+            await OnInitializedAsync(); // Recargar lista
+        }
+    }
+
+    private void VerDetalles(Pedido p) => pedidoSeleccionado = p;
+
+    private string GetEstadoNombre(int id) => id switch
+    {
+        1 => "Pendiente",
+        2 => "Enviado a WA",
+        3 => "Completado",
+        4 => "Cancelado",
+        _ => "Otros"
+    };
+
+    private string GetBadgeClass(int id) => id switch
+    {
+        1 => "bg-warning text-dark",
+        2 => "bg-success",
+        3 => "bg-primary",
+        4 => "bg-danger",
+        _ => "bg-secondary"
+    };
+}

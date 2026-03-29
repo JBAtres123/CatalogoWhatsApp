@@ -46,3 +46,50 @@ public class Producto
     // RELACIÓN: Un producto tiene muchas imágenes
     public List<ProductoImagen> Imagenes { get; set; } = new();
 }
+
+public class Pedido
+{
+    [Key]
+    public int id_pedido { get; set; }
+    public DateTime fecha_creacion { get; set; } = DateTime.Now;
+    public string nombre_cliente { get; set; } = string.Empty;
+    public string apellido_cliente { get; set; } = string.Empty;
+    public string telefono_cliente { get; set; } = string.Empty;
+    public string direccion { get; set; } = string.Empty;
+    public string? instrucciones_envio { get; set; }
+    public decimal total_pedido { get; set; }
+    public string metodo_pago { get; set; } = "Contra Entrega";
+    public int id_estado { get; set; } = 1; // 1 = Pendiente
+
+    // Relación con los detalles
+    public List<DetallePedido> Detalles { get; set; } = new();
+}
+
+public class DetallePedido
+{
+    [Key]
+    public int id_detalle { get; set; }
+
+    // Esta es la clave foránea
+    public int id_pedido { get; set; }
+
+    public int id_producto { get; set; }
+    public int cantidad { get; set; }
+    public decimal precio_unitario { get; set; }
+
+    // Agrega esta referencia para que EF no "invente" nombres de columnas
+    [ForeignKey("id_pedido")]
+    public Pedido? Pedido { get; set; }
+
+    [ForeignKey("id_producto")]
+    public Producto? Producto { get; set; }
+}
+
+
+[Table("EstadosPedido")]
+public class EstadoPedido
+{
+    [Key]
+    public int id_estado { get; set; }
+    public string nombre_estado { get; set; } = string.Empty;
+}

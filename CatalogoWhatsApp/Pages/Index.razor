@@ -2,7 +2,9 @@
 @using CatalogoWhatsApp.Data
 @using CatalogoWhatsApp.Services
 @inject ProductoService ProductoService
+@inject PedidoService PedidoService
 @inject NavigationManager Nav
+@inject IJSRuntime JSRuntime
 @rendermode RenderMode.InteractiveServer
 
 <PageTitle>Catálogo de Productos | Tienda Express</PageTitle>
@@ -65,11 +67,27 @@
                                 <span class="badge category-badge">@prod.Categoria?.nombre</span>
                                 <span class="text-success fw-bold">Q @prod.precio</span>
                             </div>
-                            <h6 class="card-title fw-bold text-dark mb-3">@prod.nombre</h6>
+                            <h6 class="card-title fw-bold text-dark mb-1 text-truncate">@prod.nombre</h6>
 
-                            <button class="btn btn-primary w-100 rounded-pill btn-add-cart"
+                            <div class="mb-3">
+                                @if (prod.stock > 0)
+                                {
+                                    <small class="text-muted">
+                                        📦 Stock:
+                                        <span class="fw-bold @(prod.stock <= 3 ? "text-danger" : "text-dark")">
+                                            @prod.stock @(prod.stock == 1 ? "unidad" : "unidades")
+                                        </span>
+                                    </small>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-danger">🚫 AGOTADO</span>
+                                }
+                            </div>
+
+                            <button type="button" class="btn btn-primary w-100 rounded-pill btn-add-cart @(prod.stock <= 0 ? "disabled opacity-50" : "")"
                             @onclick:stopPropagation @onclick="() => AgregarAlCarrito(prod)">
-                                🛒 Añadir al Pedido
+                                🛒 @(prod.stock <= 0 ? "Sin existencias" : "Añadir al Pedido")
                             </button>
                         </div>
                     </div>
@@ -81,7 +99,7 @@
 
 @if (carrito.Any())
 {
-    <div class="cart-floater" @onclick="AbrirResumen">
+    <div class="cart-floater shadow-lg" @onclick="AbrirResumen">
         <div class="cart-badge">@carrito.Sum(x => x.Cantidad)</div>
         <span class="text-white fs-3">🛒</span>
     </div>
@@ -103,25 +121,17 @@
                                     </div>
                                 }
                             </div>
-                            @if (productoSeleccionado.Imagenes.Count > 1)
-                            {
-                                <button class="carousel-control-prev" type="button" data-bs-target="#carouselDetailModal" data-bs-slide="prev">
-                                    <span class="carousel-control-prev-icon bg-dark rounded-circle p-2" aria-hidden="true"></span>
-                                </button>
-                                <button class="carousel-control-next" type="button" data-bs-target="#carouselDetailModal" data-bs-slide="next">
-                                    <span class="carousel-control-next-icon bg-dark rounded-circle p-2" aria-hidden="true"></span>
-                                </button>
-                            }
                         </div>
                     </div>
                     <div class="col-md-6 p-5 bg-white position-relative">
                         <button type="button" class="btn-close position-absolute top-0 end-0 m-3" @onclick="CerrarModal"></button>
-                        <span class="badge bg-primary-subtle text-primary mb-2">@productoSeleccionado.Categoria?.nombre</span>
                         <h2 class="fw-bold text-dark">@productoSeleccionado.nombre</h2>
-                        <h3 class="text-success mb-4">Q @productoSeleccionado.precio</h3>
-                        <p class="text-muted" style="white-space: pre-wrap; line-height: 1.6;">@productoSeleccionado.descripcion</p>
-                        <button class="btn btn-primary btn-lg w-100 rounded-pill mt-4 shadow-sm" @onclick="() => AgregarAlCarrito(productoSeleccionado)">
-                            🚀 Agregar al Carrito
+                        <h3 class="text-success mb-2">Q @productoSeleccionado.precio</h3>
+                        <p class="small text-muted mb-4">Disponibles: <b>@productoSeleccionado.stock</b></p>
+                        <p class="text-muted">@productoSeleccionado.descripcion</p>
+                        <button type="button" class="btn btn-primary btn-lg w-100 rounded-pill mt-4 shadow-sm @(productoSeleccionado.stock <= 0 ? "disabled" : "")"
+                                @onclick="() => AgregarAlCarrito(productoSeleccionado)">
+                            @(productoSeleccionado.stock <= 0 ? "Agotado" : "🚀 Agregar al Carrito")
                         </button>
                     </div>
                 </div>
@@ -133,14 +143,14 @@
 <div class="modal fade @(mostrarResumen ? "show d-block" : "")" tabindex="-1" style="background-color: rgba(0,0,0,0.6);">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 rounded-4 shadow-lg">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title fw-bold">🛒 Tu Pedido</h5>
+            <div class="modal-header bg-dark text-white text-center">
+                <h5 class="modal-title fw-bold w-100">🛒 Mi Carrito</h5>
                 <button type="button" class="btn-close btn-close-white" @onclick="() => mostrarResumen = false"></button>
             </div>
             <div class="modal-body p-4">
                 @foreach (var item in carrito)
                 {
-                    <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
                         <div>
                             <span class="fw-bold">@item.Producto.nombre</span>
                             <div class="text-muted small">Cantidad: @item.Cantidad</div>
@@ -148,15 +158,63 @@
                         <div class="text-primary fw-bold">Q @(item.Producto.precio * item.Cantidad)</div>
                     </div>
                 }
-                <hr />
-                <div class="d-flex justify-content-between h4 fw-bold">
+                <div class="d-flex justify-content-between h4 fw-bold mt-3">
                     <span>Total:</span>
                     <span class="text-success">Q @carrito.Sum(x => x.Producto.precio * x.Cantidad)</span>
                 </div>
             </div>
             <div class="modal-footer border-0 p-4">
-                <button class="btn btn-success btn-lg w-100 rounded-pill py-3 fw-bold shadow" @onclick="EnviarWhatsApp">
-                    ✅ Finalizar por WhatsApp
+                <button type="button" class="btn btn-primary btn-lg w-100 rounded-pill py-3 fw-bold shadow" @onclick="AbrirFormularioEnvio">
+                    Continuar con el Envío 📍
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade @(mostrarFormularioEnvio ? "show d-block" : "")" tabindex="-1" style="background-color: rgba(0,0,0,0.8); backdrop-filter: blur(2px);">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow-lg">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold w-100 text-center">🏠 Información de Entrega</h5>
+                <button type="button" class="btn-close btn-close-white" @onclick="() => mostrarFormularioEnvio = false"></button>
+            </div>
+            <div class="modal-body p-4 bg-light">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Nombre</label>
+                        <input type="text" @bind="datosPedido.nombre_cliente" class="form-control rounded-3" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-bold">Apellido</label>
+                        <input type="text" @bind="datosPedido.apellido_cliente" class="form-control rounded-3" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-bold">Teléfono</label>
+                        <input type="tel" @bind="datosPedido.telefono_cliente" class="form-control rounded-3" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-bold">Dirección Completa</label>
+                        <textarea @bind="datosPedido.direccion" class="form-control rounded-3" rows="2"></textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small fw-bold">Notas o Referencias</label>
+                        <input type="text" @bind="datosPedido.instrucciones_envio" class="form-control rounded-3" />
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0 p-4">
+                <button type="button" class="btn btn-success btn-lg w-100 rounded-pill py-3 fw-bold shadow"
+                        @onclick="FinalizarPedido" disabled="@isSaving">
+                    @if (isSaving)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        <span>Procesando...</span>
+                    }
+                    else
+                    {
+                        <span>🚀 Confirmar y Enviar WhatsApp</span>
+                    }
                 </button>
             </div>
         </div>
@@ -169,7 +227,7 @@
     }
 
     .producto-card {
-        transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+        transition: all 0.3s ease;
         cursor: pointer;
         border-radius: 1.2rem;
     }
@@ -193,13 +251,6 @@
             object-fit: contain;
         }
 
-    .category-badge {
-        background: #f0f2f5;
-        color: #6c757d;
-        font-size: 0.75rem;
-        border-radius: 6px;
-    }
-
     .cart-floater {
         position: fixed;
         bottom: 30px;
@@ -211,15 +262,9 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 10px 25px rgba(37, 211, 102, 0.4);
-        cursor: pointer;
         z-index: 1000;
-        transition: scale 0.2s;
+        cursor: pointer;
     }
-
-        .cart-floater:hover {
-            scale: 1.1;
-        }
 
     .cart-badge {
         position: absolute;
@@ -259,12 +304,16 @@
     private List<Producto>? productos;
     private bool mostrarModal = false;
     private bool mostrarResumen = false;
+    private bool mostrarFormularioEnvio = false;
+    private bool isSaving = false;
+
     private Producto? productoSeleccionado;
-    private List<ElementoCarrito> carrito = new();
+    private Pedido datosPedido = new Pedido();
+    private List<ElementoCarrito> carrito = new List<ElementoCarrito>();
 
     public class ElementoCarrito
     {
-        public Producto Producto { get; set; } = new();
+        public Producto Producto { get; set; } = new Producto();
         public int Cantidad { get; set; }
     }
 
@@ -276,23 +325,85 @@
     private void MostrarDetalle(Producto p) { productoSeleccionado = p; mostrarModal = true; }
     private void CerrarModal() { mostrarModal = false; }
     private void AbrirResumen() { mostrarResumen = true; }
+    private void AbrirFormularioEnvio() { mostrarResumen = false; mostrarFormularioEnvio = true; }
 
     private void AgregarAlCarrito(Producto p)
     {
+        if (p.stock <= 0) return;
         var item = carrito.FirstOrDefault(x => x.Producto.id_producto == p.id_producto);
         if (item != null) item.Cantidad++;
         else carrito.Add(new ElementoCarrito { Producto = p, Cantidad = 1 });
         CerrarModal();
     }
 
-    private void EnviarWhatsApp()
+    private async Task FinalizarPedido()
     {
-        string telefono = "50232152801";
-        string msj = "¡Hola! Quisiera pedir estos productos:\n\n";
-        foreach (var item in carrito)
-            msj += $"✅ {item.Producto.nombre} (x{item.Cantidad}) - Q{item.Producto.precio * item.Cantidad}\n";
-        msj += $"\n*Total: Q{carrito.Sum(x => x.Producto.precio * x.Cantidad)}*";
-        string url = $"https://wa.me/{telefono}?text={Uri.EscapeDataString(msj)}";
-        Nav.NavigateTo(url, true);
+        // 1. Validación de seguridad
+        if (string.IsNullOrWhiteSpace(datosPedido.nombre_cliente) ||
+            string.IsNullOrWhiteSpace(datosPedido.telefono_cliente) ||
+            string.IsNullOrWhiteSpace(datosPedido.direccion))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Por favor, completa los campos obligatorios.");
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+            StateHasChanged();
+
+            // 2. Preparar detalles
+            datosPedido.Detalles = carrito.Select(x => new DetallePedido
+                {
+                    id_producto = x.Producto.id_producto,
+                    cantidad = x.Cantidad,
+                    precio_unitario = x.Producto.precio
+                }).ToList();
+
+            datosPedido.total_pedido = carrito.Sum(x => x.Producto.precio * x.Cantidad);
+            datosPedido.id_estado = 1; // Se guarda inicialmente como Pendiente
+
+            // 3. Guardar en DB y restar stock (en una transacción)
+            int idGenerado = await PedidoService.GuardarPedidoAsync(datosPedido);
+
+            // 4. CAMBIO DE ESTADO: Ahora lo pasamos a Estado 2 (Enviado)
+            // porque ya estamos listos para saltar a WhatsApp
+            await PedidoService.ActualizarEstadoPedidoAsync(idGenerado, 2);
+
+            // 5. Preparar mensaje WhatsApp
+            string telefonoEmpresa = "50232152801";
+            string msj = $"*NUEVO PEDIDO #{idGenerado}*\n";
+            msj += "---------------------------------\n";
+            msj += $"👤 *Cliente:* {datosPedido.nombre_cliente} {datosPedido.apellido_cliente}\n";
+            msj += $"📞 *Tel:* {datosPedido.telefono_cliente}\n";
+            msj += $"📍 *Dirección:* {datosPedido.direccion}\n";
+            if (!string.IsNullOrEmpty(datosPedido.instrucciones_envio))
+                msj += $"📝 *Nota:* {datosPedido.instrucciones_envio}\n";
+            msj += "---------------------------------\n";
+            msj += "📦 *PRODUCTOS:*\n";
+
+            foreach (var item in carrito)
+            {
+                msj += $"• {item.Producto.nombre} (x{item.Cantidad}) - Q{item.Producto.precio * item.Cantidad}\n";
+            }
+            msj += $"\n💰 *TOTAL A PAGAR: Q{datosPedido.total_pedido}*\n";
+            msj += $"🚛 *Método:* Pago Contra Entrega";
+
+            // 6. Limpieza y Navegación
+            string url = $"https://wa.me/{telefonoEmpresa}?text={Uri.EscapeDataString(msj)}";
+
+            carrito.Clear();
+            datosPedido = new Pedido();
+            mostrarFormularioEnvio = false;
+
+            Nav.NavigateTo(url, true);
+        }
+        catch (Exception ex)
+        {
+            isSaving = false;
+            string errorMsj = ex.InnerException?.Message ?? ex.Message;
+            await JSRuntime.InvokeVoidAsync("alert", $"ERROR: {errorMsj}");
+            StateHasChanged();
+        }
     }
 }
