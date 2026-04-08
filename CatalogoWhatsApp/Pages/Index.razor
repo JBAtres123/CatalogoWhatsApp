@@ -5,14 +5,36 @@
 @inject PedidoService PedidoService
 @inject NavigationManager Nav
 @inject IJSRuntime JSRuntime
+@inject AuthService AuthService
 @rendermode RenderMode.InteractiveServer
 
-<PageTitle>Catálogo de Productos | Tienda Express</PageTitle>
+<PageTitle>Tienda Express | Estilo y Calidad Guatemala</PageTitle>
 
-<div class="container mt-5 pb-5">
-    <div class="text-center mb-5 p-5 rounded-4 shadow-sm hero-section">
-        <h1 class="display-4 fw-bold text-primary">Nuestra Colección</h1>
-        <p class="lead text-muted">Explora calidad, selecciona estilo y pide por WhatsApp</p>
+<header class="hero-section text-white d-flex align-items-center">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <div class="container text-center animate-in">
+        <h1 class="display-2 fw-bold mb-3 shadow-text">Estilo que Conecta</h1>
+        <p class="lead fs-4 mb-4 shadow-text">Tendencias en calzado y ropa con pedido directo por WhatsApp.</p>
+        <div class="d-grid gap-3 d-sm-flex justify-content-sm-center">
+            <button class="btn btn-primary btn-lg px-5 rounded-pill shadow-lg fw-bold" @onclick="ScrollToNovedades">
+                🛍️ Ver Catálogo
+            </button>
+            <button class="btn btn-outline-light btn-lg px-5 rounded-pill fw-bold" @onclick="MostrarHistoria">
+                📖 Nuestra Historia
+            </button>
+        </div>
+    </div>
+</header>
+
+<div class="container mt-5 pb-5" id="novedades-section">
+    <div class="d-flex justify-content-between align-items-center mb-5 p-4 rounded-4 shadow-sm bg-white border-start border-primary border-5">
+        <div>
+            <h2 class="fw-bold mb-0 text-dark">🔥 Colección 2026</h2>
+            <p class="text-muted mb-0">Explora calidad, selecciona estilo y pide por WhatsApp</p>
+        </div>
+        <button class="btn btn-outline-secondary rounded-pill px-4 fw-bold shadow-sm" @onclick="IrAAdmin">
+            Administración ⚙️
+        </button>
     </div>
 
     @if (productos == null)
@@ -24,7 +46,7 @@
     }
     else if (!productos.Any())
     {
-        <div class="alert alert-light text-center shadow-sm border-0 py-5" role="alert">
+        <div class="alert alert-light text-center shadow-sm border-0 py-5">
             <h4 class="text-muted">Aún no hay productos en exhibición.</h4>
         </div>
     }
@@ -34,50 +56,21 @@
             @foreach (var prod in productos)
             {
                 <div class="col">
-                    <div class="card h-100 producto-card border-0 shadow-sm" @onclick="() => MostrarDetalle(prod)">
-                        <div id="cardCarousel-@prod.id_producto" class="carousel slide carousel-fade h-100"
-                             data-bs-ride="carousel"
-                             data-bs-interval="3000"
-                             data-bs-pause="false">
-                            <div class="carousel-inner rounded-t-4">
-                                @if (prod.Imagenes != null && prod.Imagenes.Any())
-                                {
-                                    @for (int i = 0; i < prod.Imagenes.Count; i++)
-                                    {
-                                        <div class="carousel-item @(i == 0 ? "active" : "")">
-                                            <div class="img-wrapper">
-                                                <img src="@prod.Imagenes[i].imagen_url" class="d-block w-100" alt="@prod.nombre">
-                                            </div>
-                                        </div>
-                                    }
-                                }
-                                else
-                                {
-                                    <div class="carousel-item active">
-                                        <div class="img-wrapper">
-                                            <img src="images/no-image.png" class="d-block w-100" alt="Sin imagen">
-                                        </div>
-                                    </div>
-                                }
-                            </div>
+                    <div class="card h-100 producto-card border-0 shadow-sm rounded-4 overflow-hidden" @onclick="() => MostrarDetalle(prod)">
+                        <div class="img-wrapper bg-light d-flex align-items-center justify-content-center" style="height: 220px; padding: 15px;">
+                            <img src="@(prod.Imagenes?.FirstOrDefault()?.imagen_url ?? "images/no-image.png")"
+                                 class="img-fluid" style="max-height: 100%; object-fit: contain;" alt="@prod.nombre">
                         </div>
 
-                        <div class="card-body p-3">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <span class="badge category-badge">@prod.Categoria?.nombre</span>
-                                <span class="text-success fw-bold">Q @prod.precio</span>
-                            </div>
-                            <h6 class="card-title fw-bold text-dark mb-1 text-truncate">@prod.nombre</h6>
+                        <div class="card-body p-3 text-center">
+                            <span class="badge bg-soft-primary text-primary mb-2">@prod.Categoria?.nombre</span>
+                            <h6 class="card-title fw-bold text-dark mb-2 text-truncate">@prod.nombre</h6>
+                            <h5 class="text-success fw-bold mb-3">Q @prod.precio</h5>
 
-                            <div class="mb-3">
+                            <div class="mb-3 small">
                                 @if (prod.stock > 0)
                                 {
-                                    <small class="text-muted">
-                                        📦 Stock:
-                                        <span class="fw-bold @(prod.stock <= 3 ? "text-danger" : "text-dark")">
-                                            @prod.stock @(prod.stock == 1 ? "unidad" : "unidades")
-                                        </span>
-                                    </small>
+                                    <span class="text-muted">📦 Stock: <b class="@(prod.stock <= 3 ? "text-danger" : "text-dark")">@prod.stock</b></span>
                                 }
                                 else
                                 {
@@ -85,7 +78,7 @@
                                 }
                             </div>
 
-                            <button type="button" class="btn btn-primary w-100 rounded-pill btn-add-cart @(prod.stock <= 0 ? "disabled opacity-50" : "")"
+                            <button type="button" class="btn btn-primary w-100 rounded-pill fw-bold @(prod.stock <= 0 ? "disabled opacity-50" : "")"
                             @onclick:stopPropagation @onclick="() => AgregarAlCarrito(prod)">
                                 🛒 @(prod.stock <= 0 ? "Sin existencias" : "Añadir al Pedido")
                             </button>
@@ -97,9 +90,22 @@
     }
 </div>
 
+<footer class="bg-dark text-white pt-5 pb-4 mt-5">
+    <div class="container text-center">
+        <h4 class="fw-bold mb-4">Síguenos en Redes Sociales</h4>
+        <div class="d-flex justify-content-center gap-4 mb-5">
+            <a href="https://facebook.com" target="_blank" class="social-link fb"><i class="bi bi-facebook fs-1"></i></a>
+            <a href="https://instagram.com" target="_blank" class="social-link ig"><i class="bi bi-instagram fs-1"></i></a>
+            <a href="https://wa.me/50232152801" target="_blank" class="social-link wa"><i class="bi bi-whatsapp fs-1"></i></a>
+        </div>
+        <hr class="opacity-25" />
+        <p class="small text-muted mb-0">© 2026 Tienda Express Guatemala. Calidad garantizada.</p>
+    </div>
+</footer>
+
 @if (carrito.Any())
 {
-    <div class="cart-floater shadow-lg" @onclick="AbrirResumen">
+    <div class="cart-floater shadow-lg animate-in" @onclick="AbrirResumen">
         <div class="cart-badge">@carrito.Sum(x => x.Cantidad)</div>
         <span class="text-white fs-3">🛒</span>
     </div>
@@ -107,16 +113,16 @@
 
 <div class="modal fade @(mostrarModal ? "show d-block" : "")" tabindex="-1" style="background-color: rgba(0,0,0,0.7); backdrop-filter: blur(5px);">
     <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 rounded-4 overflow-hidden shadow-lg">
+        <div class="modal-content border-0 rounded-4 shadow-lg overflow-hidden">
             @if (productoSeleccionado != null)
             {
                 <div class="row g-0">
                     <div class="col-md-6 bg-light d-flex align-items-center">
                         <div id="carouselDetailModal" class="carousel slide w-100" data-bs-ride="false">
-                            <div class="carousel-inner p-4">
+                            <div class="carousel-inner p-4 text-center">
                                 @for (int i = 0; i < productoSeleccionado.Imagenes.Count; i++)
                                 {
-                                    <div class="carousel-item @(i == 0 ? "active" : "") text-center">
+                                    <div class="carousel-item @(i == 0 ? "active" : "")">
                                         <img src="@productoSeleccionado.Imagenes[i].imagen_url" class="img-fluid rounded-3" style="max-height: 400px; object-fit: contain;">
                                     </div>
                                 }
@@ -143,8 +149,8 @@
 <div class="modal fade @(mostrarResumen ? "show d-block" : "")" tabindex="-1" style="background-color: rgba(0,0,0,0.6);">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 rounded-4 shadow-lg">
-            <div class="modal-header bg-dark text-white text-center">
-                <h5 class="modal-title fw-bold w-100">🛒 Mi Carrito</h5>
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title fw-bold">🛒 Mi Carrito</h5>
                 <button type="button" class="btn-close btn-close-white" @onclick="() => mostrarResumen = false"></button>
             </div>
             <div class="modal-body p-4">
@@ -176,30 +182,30 @@
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 rounded-4 shadow-lg">
             <div class="modal-header bg-success text-white">
-                <h5 class="modal-title fw-bold w-100 text-center">🏠 Información de Entrega</h5>
+                <h5 class="modal-title fw-bold w-100 text-center">🏠 Datos de Entrega</h5>
                 <button type="button" class="btn-close btn-close-white" @onclick="() => mostrarFormularioEnvio = false"></button>
             </div>
             <div class="modal-body p-4 bg-light">
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label class="form-label small fw-bold">Nombre</label>
-                        <input type="text" @bind="datosPedido.nombre_cliente" class="form-control rounded-3" />
+                        <input type="text" @bind="datosPedido.nombre_cliente" class="form-control" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label small fw-bold">Apellido</label>
-                        <input type="text" @bind="datosPedido.apellido_cliente" class="form-control rounded-3" />
+                        <input type="text" @bind="datosPedido.apellido_cliente" class="form-control" />
                     </div>
                     <div class="col-12">
-                        <label class="form-label small fw-bold">Teléfono</label>
-                        <input type="tel" @bind="datosPedido.telefono_cliente" class="form-control rounded-3" />
+                        <label class="form-label small fw-bold">Teléfono (WhatsApp)</label>
+                        <input type="tel" @bind="datosPedido.telefono_cliente" class="form-control" />
                     </div>
                     <div class="col-12">
                         <label class="form-label small fw-bold">Dirección Completa</label>
-                        <textarea @bind="datosPedido.direccion" class="form-control rounded-3" rows="2"></textarea>
+                        <textarea @bind="datosPedido.direccion" class="form-control" rows="2"></textarea>
                     </div>
                     <div class="col-12">
                         <label class="form-label small fw-bold">Notas o Referencias</label>
-                        <input type="text" @bind="datosPedido.instrucciones_envio" class="form-control rounded-3" />
+                        <input type="text" @bind="datosPedido.instrucciones_envio" class="form-control" />
                     </div>
                 </div>
             </div>
@@ -223,32 +229,29 @@
 
 <style>
     .hero-section {
-        background: linear-gradient(120deg, #ffffff 0%, #f3f4f7 100%);
+        height: 70vh;
+        background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.6)), url('https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070');
+        background-size: cover;
+        background-position: center;
+        border-radius: 0 0 50px 50px;
+    }
+
+    .shadow-text {
+        text-shadow: 2px 2px 10px rgba(0,0,0,0.8);
+    }
+
+    .bg-soft-primary {
+        background-color: #e7f1ff;
     }
 
     .producto-card {
         transition: all 0.3s ease;
         cursor: pointer;
-        border-radius: 1.2rem;
     }
 
         .producto-card:hover {
             transform: translateY(-10px);
-            box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important;
-        }
-
-    .img-wrapper {
-        height: 200px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 15px;
-        background: #fff;
-    }
-
-        .img-wrapper img {
-            max-height: 100%;
-            object-fit: contain;
+            box-shadow: 0 1rem 3rem rgba(0,0,0,0.15) !important;
         }
 
     .cart-floater {
@@ -256,8 +259,8 @@
         bottom: 30px;
         right: 30px;
         background: #25D366;
-        width: 65px;
-        height: 65px;
+        width: 70px;
+        height: 70px;
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -273,8 +276,8 @@
         background: #ff3b30;
         color: white;
         border-radius: 50%;
-        width: 24px;
-        height: 24px;
+        width: 25px;
+        height: 25px;
         font-size: 12px;
         display: flex;
         align-items: center;
@@ -283,14 +286,34 @@
         font-weight: bold;
     }
 
+    .social-link {
+        color: white;
+        transition: 0.3s;
+    }
+
+    .fb:hover {
+        color: #1877F2;
+        transform: scale(1.1);
+    }
+
+    .ig:hover {
+        color: #E4405F;
+        transform: scale(1.1);
+    }
+
+    .wa:hover {
+        color: #25D366;
+        transform: scale(1.1);
+    }
+
     .animate-in {
-        animation: fadeInUp 0.6s ease-out;
+        animation: fadeInUp 0.8s ease-out;
     }
 
     @@keyframes fadeInUp {
         from {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(30px);
         }
 
         to {
@@ -306,26 +329,47 @@
     private bool mostrarResumen = false;
     private bool mostrarFormularioEnvio = false;
     private bool isSaving = false;
-
     private Producto? productoSeleccionado;
     private Pedido datosPedido = new Pedido();
     private List<ElementoCarrito> carrito = new List<ElementoCarrito>();
 
-    public class ElementoCarrito
-    {
-        public Producto Producto { get; set; } = new Producto();
-        public int Cantidad { get; set; }
-    }
+    public class ElementoCarrito { public Producto Producto { get; set; } = new(); public int Cantidad { get; set; } }
 
-    protected override async Task OnInitializedAsync()
-    {
-        productos = await ProductoService.GetProductosAsync();
-    }
+    protected override async Task OnInitializedAsync() => productos = await ProductoService.GetProductosAsync();
 
     private void MostrarDetalle(Producto p) { productoSeleccionado = p; mostrarModal = true; }
-    private void CerrarModal() { mostrarModal = false; }
-    private void AbrirResumen() { mostrarResumen = true; }
+    private void CerrarModal() => mostrarModal = false;
+    private void AbrirResumen() => mostrarResumen = true;
     private void AbrirFormularioEnvio() { mostrarResumen = false; mostrarFormularioEnvio = true; }
+
+    private async Task ScrollToNovedades()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('novedades-section').scrollIntoView({behavior: 'smooth'})");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al hacer scroll: {ex.Message}");
+        }
+    }
+
+    private async Task MostrarHistoria() => await JSRuntime.InvokeVoidAsync("alert", "Tienda Express: Orgullosamente guatemaltecos, ofreciendo moda y calidad desde 2020.");
+
+    private async Task IrAAdmin()
+    {
+        try
+        {
+            // En Blazor Server, el localStorage solo está disponible DESPUÉS del renderizado
+            var auth = await AuthService.IsAuthenticated();
+            if (auth) Nav.NavigateTo("/admin/productos");
+            else Nav.NavigateTo("/login");
+        }
+        catch
+        {
+            Nav.NavigateTo("/login"); // Por seguridad, si falla, al login
+        }
+    }
 
     private void AgregarAlCarrito(Producto p)
     {
@@ -338,12 +382,9 @@
 
     private async Task FinalizarPedido()
     {
-        // 1. Validación de seguridad
-        if (string.IsNullOrWhiteSpace(datosPedido.nombre_cliente) ||
-            string.IsNullOrWhiteSpace(datosPedido.telefono_cliente) ||
-            string.IsNullOrWhiteSpace(datosPedido.direccion))
+        if (string.IsNullOrWhiteSpace(datosPedido.nombre_cliente) || string.IsNullOrWhiteSpace(datosPedido.direccion))
         {
-            await JSRuntime.InvokeVoidAsync("alert", "Por favor, completa los campos obligatorios.");
+            await JSRuntime.InvokeVoidAsync("alert", "Por favor completa tus datos de envío.");
             return;
         }
 
@@ -352,7 +393,7 @@
             isSaving = true;
             StateHasChanged();
 
-            // 2. Preparar detalles
+            // 1. Cargamos los detalles desde el carrito
             datosPedido.Detalles = carrito.Select(x => new DetallePedido
                 {
                     id_producto = x.Producto.id_producto,
@@ -361,17 +402,12 @@
                 }).ToList();
 
             datosPedido.total_pedido = carrito.Sum(x => x.Producto.precio * x.Cantidad);
-            datosPedido.id_estado = 1; // Se guarda inicialmente como Pendiente
 
-            // 3. Guardar en DB y restar stock (en una transacción)
+            // 2. Guardar en DB y actualizar estado a 'Enviado a WA'
             int idGenerado = await PedidoService.GuardarPedidoAsync(datosPedido);
-
-            // 4. CAMBIO DE ESTADO: Ahora lo pasamos a Estado 2 (Enviado)
-            // porque ya estamos listos para saltar a WhatsApp
             await PedidoService.ActualizarEstadoPedidoAsync(idGenerado, 2);
 
-            // 5. Preparar mensaje WhatsApp
-            string telefonoEmpresa = "50232152801";
+            // 3. CONSTRUCCIÓN DEL MENSAJE FORMATEADO (Aquí está la magia)
             string msj = $"*NUEVO PEDIDO #{idGenerado}*\n";
             msj += "---------------------------------\n";
             msj += $"👤 *Cliente:* {datosPedido.nombre_cliente} {datosPedido.apellido_cliente}\n";
@@ -382,16 +418,20 @@
             msj += "---------------------------------\n";
             msj += "📦 *PRODUCTOS:*\n";
 
+            // RECORREMOS EL CARRITO PARA LISTAR LOS PRODUCTOS
             foreach (var item in carrito)
             {
                 msj += $"• {item.Producto.nombre} (x{item.Cantidad}) - Q{item.Producto.precio * item.Cantidad}\n";
             }
-            msj += $"\n💰 *TOTAL A PAGAR: Q{datosPedido.total_pedido}*\n";
+
+            msj += "---------------------------------\n";
+            msj += $"💰 *TOTAL A PAGAR: Q{datosPedido.total_pedido.ToString("N2")}*\n";
             msj += $"🚛 *Método:* Pago Contra Entrega";
 
-            // 6. Limpieza y Navegación
-            string url = $"https://wa.me/{telefonoEmpresa}?text={Uri.EscapeDataString(msj)}";
+            // 4. Redirección
+            string url = $"https://wa.me/50232152801?text={Uri.EscapeDataString(msj)}";
 
+            // Limpieza de interfaz
             carrito.Clear();
             datosPedido = new Pedido();
             mostrarFormularioEnvio = false;
@@ -401,9 +441,7 @@
         catch (Exception ex)
         {
             isSaving = false;
-            string errorMsj = ex.InnerException?.Message ?? ex.Message;
-            await JSRuntime.InvokeVoidAsync("alert", $"ERROR: {errorMsj}");
-            StateHasChanged();
+            await JSRuntime.InvokeVoidAsync("alert", $"Error al procesar pedido: {ex.Message}");
         }
     }
 }
